@@ -12,9 +12,15 @@ class ToDoListViewController: UITableViewController {
 
     var itemArray = ["Note1", "Note2", "Note3"]
     
+    let defaults = UserDefaults.standard
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
+        if let items = defaults.array(forKey: "ToDoListArray") as? [String] {
+            itemArray = items
+        }
+        
         let longPressRecognizer = UILongPressGestureRecognizer(target: self, action: #selector(self.longPress(longPressGestureRecognizer:)))
         self.view.addGestureRecognizer(longPressRecognizer)
     }
@@ -60,6 +66,7 @@ class ToDoListViewController: UITableViewController {
                     print("Success")
                     if textField.text != nil {
                         self.itemArray[index.row] = textField.text!
+                        self.defaults.setValue(self.itemArray, forKey: "ToDoListArray")
                         self.tableView.reloadData()
                     }
                 }
@@ -85,6 +92,7 @@ class ToDoListViewController: UITableViewController {
             print("Success")
             if textField.text != nil {
                 self.itemArray.append(textField.text!)
+                self.defaults.setValue(self.itemArray, forKey: "ToDoListArray")
                 self.tableView.reloadData()
             }
         }
