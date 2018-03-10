@@ -7,32 +7,36 @@
 //
 
 import UIKit
+import CoreData
+
 
 class ToDoListViewController: UITableViewController {
 
-//    var itemArray = ["Note1", "Note2", "Note3","Note11", "Note12", "Note13","Note21", "Note22", "Note23","Note31", "Note32", "Note33","Note41", "Note42", "Note43","Note51", "Note52", "Note53","Note61", "Note62", "Note63"]
     var itemArray = [Item]()
+    var selectedCategory : Category? {
+        didSet{
+            loadItems()
+        }
+    }
 //    user default preference simple way to store array or some value
 //    let defaults = UserDefaults.standard
-    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
+//    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
+    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+    
+    
     
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
         
-        print(dataFilePath!)
-        
-        loadItems()
-        
-//        if let items = defaults.array(forKey: "ToDoListArray") as? [Item] {
-//            itemArray = items
-//        }
+        print(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask))
         
         let longPressRecognizer = UILongPressGestureRecognizer(target: self, action: #selector(self.longPress(longPressGestureRecognizer:)))
         self.view.addGestureRecognizer(longPressRecognizer)
     }
     
-    //MARK - Tableview DataSource Methods
+    //MARK: - Tableview DataSource Methods
+    
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return itemArray.count
     }
@@ -48,9 +52,13 @@ class ToDoListViewController: UITableViewController {
         return cell
     }
     
-    //MARK - TableView Delegate Methods
+    //MARK: - TableView Delegate Methods
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
 
+        
+//        context.delete(itemArray[indexPath.row])
+//        itemArray.remove(at: indexPath.row)
+        
         itemArray[indexPath.row].done = !itemArray[indexPath.row].done
         saveItems()
         
@@ -63,7 +71,7 @@ class ToDoListViewController: UITableViewController {
         
         
     }
-    //MARK - longpressed item
+    //MARK: - longpressed item
     
     @objc func longPress(longPressGestureRecognizer: UILongPressGestureRecognizer) {
         
@@ -97,7 +105,7 @@ class ToDoListViewController: UITableViewController {
         }
     }
     
-    //MARK - Add new Items
+    //MARK: - Add new Items
     
     @IBAction func addButtonPressed(_ sender: UIBarButtonItem) {
         
@@ -108,9 +116,11 @@ class ToDoListViewController: UITableViewController {
             //what will happen once user clicks the Add Iten Button on UIAlert
             print("Success")
             if textField.text != nil {
-                let newItem = Item()
+                
+                let newItem = Item(context: self.context)
                 newItem.title = textField.text!
-            
+                newItem.done = false
+                newItem.parentCategory = self.selectedCategory
                 self.itemArray.append(newItem)
 //                self.defaults.setValue(self.itemArray, forKey: "ToDoListArray")
                 self.saveItems()
@@ -125,26 +135,56 @@ class ToDoListViewController: UITableViewController {
         
     }
     
+    // MARK: - Model Manupulation Methods
     func saveItems() {
-        let encoder = PropertyListEncoder()
+        
         do{
-            let data = try encoder.encode(itemArray)
-            try data.write(to: dataFilePath!)
+            try context.save()
         } catch{
-            print("Error encoding item array, \(error)")
+            print("Error saving context, \(error)")
         }
         tableView.reloadData()
         
     }
 
-    func loadItems() {
-        if let data = try? Data(contentsOf: dataFilePath!) {
-            let decoder = PropertyListDecoder()
-            do {
-                itemArray = try decoder.decode([Item].self, from: data)
-            } catch {
-                print("Error decoding item array, \(error)")
+    func loadItems(with request: NSFetchRequest<Item> = Item.fetchRequest(), predicate: NSPredicate? = nil) {
+        
+        let categoryPredicate = NSPredicate(format: "parentCategory.name MATCHES %@", selectedCategory!.name!)
+
+        if let additionaPredicate = predicate {
+            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [categoryPredicate, additionaPredicate])
+        } else {
+            request.predicate = categoryPredicate
+        }
+
+        do {
+            itemArray = try context.fetch(request)
+        } catch {
+            print("Error fetching ata from context \(error)")
+        }
+        tableView.reloadData()
+    }
+    
+}
+// MARK: SearchBar methods
+extension ToDoListViewController: UISearchBarDelegate {
+    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+        let request: NSFetchRequest<Item> = Item.fetchRequest()
+        
+        let predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
+        
+        request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
+        
+        loadItems(with: request, predicate: predicate)
+    }
+    
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
+        if searchBar.text?.count == 0 {
+            loadItems()
+            DispatchQueue.main.async {
+                searchBar.resignFirstResponder()
             }
+            
         }
     }
 }
