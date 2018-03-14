@@ -10,21 +10,17 @@ import UIKit
 //import CoreData
 import RealmSwift
 
-class CategoryViewController: UITableViewController {
-//    MARK: - array with type for CoreData
-//    var categoryArray = [Category]()
+class CategoryViewController: SwipeTableViewController {
+
 //    MARK: - array with type for Realm
     var categories: Results<Category>?
-//    MARK: - context for CoreData
-    //    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     let realm = try! Realm()
     override func viewDidLoad() {
         super.viewDidLoad()
-        
+        let longPressRecognizer = UILongPressGestureRecognizer(target: self, action: #selector(self.longPress(longPressGestureRecognizer:)))
+        self.view.addGestureRecognizer(longPressRecognizer)
         
         load()
-        //    MARK: - loading data from CoreData
-//        loadCategories()
     }
 
     //MARK: - TableView DataSource Methods
@@ -34,9 +30,9 @@ class CategoryViewController: UITableViewController {
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "CategoryCell", for: indexPath)
-        cell.textLabel?.text = categories?[indexPath.row].name ?? "No Categories Added Yet"
+        let cell = super.tableView(tableView, cellForRowAt: indexPath)
         
+        cell.textLabel?.text = categories?[indexPath.row].name ?? "No Categories Added Yet"
         
         return cell
     }
@@ -59,6 +55,44 @@ class CategoryViewController: UITableViewController {
         }
     }
     
+    //MARK: - longpressed item
+    
+    @objc func longPress(longPressGestureRecognizer: UILongPressGestureRecognizer) {
+        
+        if longPressGestureRecognizer.state == UIGestureRecognizerState.began {
+            
+            let touchPoint = longPressGestureRecognizer.location(in: self.view)
+            let alert = UIAlertController(title: "Rename Categoty", message: "", preferredStyle: .alert)
+            
+            if let index = self.tableView.indexPathForRow(at: touchPoint)  {
+                
+                // your code here, get the row for the indexPath or do whatever you want
+                var textField = UITextField()
+                let action = UIAlertAction(title: "Rename", style: .default) { (action) in
+                    //what will happen once user clicks the Add Iten Button on UIAlert
+                    if textField.text != nil {
+                        if let currentCategory = self.categories?[index.row] {
+                            do {
+                                try self.realm.write {
+                                    currentCategory.name = textField.text!
+                                }
+                            } catch {
+                                print("Error updatinf item, \(error)")
+                            }
+                        }
+                        self.tableView.reloadData()
+                    }
+                }
+                alert.addTextField { (alertTextField) in
+                    alertTextField.text = self.categories?[index.row].name ?? "None"
+                    textField = alertTextField
+                }
+                alert.addAction(action)
+                present(alert, animated: true, completion: nil)
+            }
+        }
+    }
+    
     
     //MARK: - Add New Categories
     
@@ -69,13 +103,9 @@ class CategoryViewController: UITableViewController {
         
         let action = UIAlertAction(title: "Add", style: .default) { (action) in
             if textField.text != nil {
-                //TODO: - initialize for CoreData
-//                let newCategory = Category(context: self.context)
+
                 let newCategory = Category()
                 newCategory.name = textField.text!
-
-//                self.categoryArray.append(newCategory)
-//                self.saveCategories()
                 self.save(with: newCategory)
             }
         }
@@ -91,21 +121,27 @@ class CategoryViewController: UITableViewController {
         alert.addAction(actionCancel)
         present(alert, animated: true, completion: nil)
     }
-    //MARK: -  function loading data from CoreData
-//    func loadCategories(with request: NSFetchRequest<Category> = Category.fetchRequest()) {
-//        do {
-//            categoryArray = try context.fetch(request)
-//        } catch {
-//            print("Error fetch categories \(error)")
-//        }
-//        tableView.reloadData()
-//    }
-//    MARK: -  function loading data from Realm
+
+    //    MARK: -  function loading data from Realm
     func load() {
         categories = realm.objects(Category.self)
         
         tableView.reloadData()
     }
+    
+    //MARK: - Delete Data From Swipe
+    override func updateModel(at indexPath: IndexPath) {
+        if let categoryForDeletion = categories?[indexPath.row] {
+            do {
+                try realm.write {
+                    realm.delete(categoryForDeletion)
+                }
+            } catch {
+                print("Error deletion category, \(error)")
+            }
+        }
+    }
+    
     //MARK: - function save data in Realm
     func save(with category: Category){
         do {
@@ -117,16 +153,4 @@ class CategoryViewController: UITableViewController {
         }
         tableView.reloadData()
     }
-//  MARK: - function save data for CoreData
-//    func saveCategories(){
-//        do {
-//            try context.save()
-//        } catch {
-//            print("Error save categories \(error)")
-//        }
-//        tableView.reloadData()
-//    }
-    
-    //MARK: - TableView Manipulation Methods
-   
 }

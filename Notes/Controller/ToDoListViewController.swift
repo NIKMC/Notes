@@ -10,9 +10,8 @@ import UIKit
 //import CoreData
 import RealmSwift
 
-class ToDoListViewController: UITableViewController {
-//    MARK: - array with type for CoreData
-//    var itemArray = [Item]()
+class ToDoListViewController: SwipeTableViewController {
+
 //    MARK: - array with type for Realm
     var todoItems : Results<Item>?
     
@@ -22,21 +21,13 @@ class ToDoListViewController: UITableViewController {
             loadItems()
         }
     }
-    
-//    user default preference simple way to store array or some value
-//    let defaults = UserDefaults.standard
-//    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
-    
-    //    MARK: - context for CoreData
-//    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
-    
-    
+      
     
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
         
-        print(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask))
+//        print(FileManager.default.urls(for: .documentDirectory, in: .userDomainMask))
         
         let longPressRecognizer = UILongPressGestureRecognizer(target: self, action: #selector(self.longPress(longPressGestureRecognizer:)))
         self.view.addGestureRecognizer(longPressRecognizer)
@@ -50,16 +41,13 @@ class ToDoListViewController: UITableViewController {
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
 //        let cell = UITableViewCell(style: .default, reuseIdentifier: "ToDoItemCell")
-        let cell = tableView.dequeueReusableCell(withIdentifier: "ToDoItemCell", for: indexPath)
+        let cell = super.tableView(tableView, cellForRowAt: indexPath)
         if let item = todoItems?[indexPath.row] {
             cell.textLabel?.text = item.title
-            
             cell.accessoryType = item.done ? .checkmark : .none
-
         } else {
             cell.textLabel?.text = "No Items Added"
         }
-
         return cell
     }
     
@@ -77,20 +65,8 @@ class ToDoListViewController: UITableViewController {
             }
         }
         tableView.reloadData()
-        //Using for CoreData
-//        context.delete(itemArray[indexPath.row])
-//        itemArray.remove(at: indexPath.row)
-
-//        todoItems[indexPath.row].done = !todoItems[indexPath.row].done
-//        saveItems()
-        
         tableView.deselectRow(at: indexPath, animated: true)
-//        if tableView.cellForRow(at: indexPath)?.accessoryType == .checkmark {
-//            tableView.cellForRow(at: indexPath)?.accessoryType = .none
-//        } else {
-//            tableView.cellForRow(at: indexPath)?.accessoryType = .checkmark
-//        }
-        
+
         
     }
     //MARK: - longpressed item
@@ -110,7 +86,6 @@ class ToDoListViewController: UITableViewController {
                     //what will happen once user clicks the Add Iten Button on UIAlert
                     print("Success")
                     if textField.text != nil {
-                        
                         if let item = self.todoItems?[index.row] {
                             do {
                                 try self.realm.write {
@@ -120,15 +95,10 @@ class ToDoListViewController: UITableViewController {
                                 print("Error updatinf item, \(error)")
                             }
                         }
-                        
-//                        self.todoItems?[index.row].title = textField.text!
-//                        simple way how to save changed values in preference
-//                        self.defaults.setValue(self.itemArray, forKey: "ToDoListArray")
-//                        self.saveItems()
                         self.tableView.reloadData()
                     }
                 }
-                alert.addTextField{ (alertTextField) in
+                alert.addTextField { (alertTextField) in
                     alertTextField.text = self.todoItems?[index.row].title ?? "None"
                     textField = alertTextField
                 }
@@ -164,15 +134,6 @@ class ToDoListViewController: UITableViewController {
                     }
                     self.tableView.reloadData()
                 }
-//                TODO: - initialise data for CoreData
-//                let newItem = Item(context: self.context)
-//                newItem.title = textField.text!
-//                newItem.done = false
-//                newItem.parentCategory = self.selectedCategory
-//                self.itemArray.append(newItem)
-//                self.defaults.setValue(self.itemArray, forKey: "ToDoListArray")
-//                self.saveItems()
-
             }
         }
         alert.addTextField{ (alertTextField) in
@@ -188,18 +149,20 @@ class ToDoListViewController: UITableViewController {
         
     }
     
-    // MARK: - Model Manupulation Methods
-    // MARK: - Function save items for CoreData
-//    func saveItems() {
-//
-//        do{
-//            try context.save()
-//        } catch{
-//            print("Error saving context, \(error)")
-//        }
-//        tableView.reloadData()
-//
-//    }
+    //MARK: - Delete Data From Swipe
+    override func updateModel(at indexPath: IndexPath) {
+        if let curentItem = todoItems?[indexPath.row] {
+            do {
+                try realm.write {
+                    realm.delete(curentItem)
+                }
+            } catch {
+                print("Error deletion category, \(error)")
+            }
+        }
+    }
+    
+    
     
 //     MARK: - Function save items for Realm
     func save(with item:Item) {
@@ -215,26 +178,7 @@ class ToDoListViewController: UITableViewController {
     
         }
     
-    
-//    MARK: - function loading items from CoreData
-//    func loadItems(with request: NSFetchRequest<Item> = Item.fetchRequest(), predicate: NSPredicate? = nil) {
-//
-//        let categoryPredicate = NSPredicate(format: "parentCategory.name MATCHES %@", selectedCategory!.name!)
-//
-//        if let additionaPredicate = predicate {
-//            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [categoryPredicate, additionaPredicate])
-//        } else {
-//            request.predicate = categoryPredicate
-//        }
-//
-//        do {
-//            itemArray = try context.fetch(request)
-//        } catch {
-//            print("Error fetching ata from context \(error)")
-//        }
-//        tableView.reloadData()
-//    }
-    //    MARK: - function loading items from Realm
+      //    MARK: - function loading items from Realm
     func loadItems() {
 
         todoItems = selectedCategory?.items.sorted(byKeyPath: "title", ascending: true)
@@ -244,34 +188,14 @@ class ToDoListViewController: UITableViewController {
 }
 // MARK: SearchBar methods
 extension ToDoListViewController: UISearchBarDelegate {
-// MARK: searchBarSearchButtonClicked methods for CoreDara
-//    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
-//        let request: NSFetchRequest<Item> = Item.fetchRequest()
-//
-//        let predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
-//
-//        request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
-//
-//        //CoreData
-////        loadItems(with: request, predicate: predicate)
-//    }
-    // MARK: searchBarSearchButtonClicked methods for Realm
+   // MARK: searchBarSearchButtonClicked methods for Realm
 
     func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
         todoItems = todoItems?.filter("title CONTAINS[cd] %@", searchBar.text!).sorted(byKeyPath: "dateTime", ascending: true)
         tableView.reloadData()
     }
     
-    // MARK: searchBar methods for CoreData
-//    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
-//        if searchBar.text?.count == 0 {
-//            //CoreData
-//            //            loadItems()
-//            DispatchQueue.main.async {
-//                searchBar.resignFirstResponder()
-//            }
-    
-    // MARK: searchBar methods for Realm
+      // MARK: searchBar methods for Realm
     func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
         if searchBar.text?.count == 0 {
             loadItems()
@@ -281,4 +205,6 @@ extension ToDoListViewController: UISearchBarDelegate {
         }
     }
 }
+
+
 
